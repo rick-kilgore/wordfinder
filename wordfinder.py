@@ -51,6 +51,7 @@ def add_word(word: str, dot_vals: str, words: Dict[str, str]) -> None:
 
 
 def recurse(
+    depth: int,
     static: StaticData,
     sofar: str, cur_prefix_len: int, cur_postfix_len: int,
     letters: str, template: str, templstarted: bool,
@@ -58,7 +59,7 @@ def recurse(
 ) -> Dict[str, str]:
 
   debug_log(
-      f"recurse sofar={sofar} prefix={cur_prefix_len} postfix={cur_postfix_len} "
+      f"{'  ' * depth}recurse sofar={sofar} prefix={cur_prefix_len} postfix={cur_postfix_len} "
       f"letters={letters} template={template} tstarted={templstarted} in_dot_vals={in_dot_vals}")
   noLetters = len(letters) == 0
   emptyTemplate = len(template) == 0
@@ -77,7 +78,7 @@ def recurse(
     # try adding ch from letters to prefix before template
     remaining_letters_required = reduce(lambda tot, ch: tot + (1 if ch == '.' or ch.isupper() else 0), [0] + list(template))
     if not templstarted and cur_prefix_len < static.maxprefix and len(letters) > remaining_letters_required:
-      debug_log(f"    prefix: remaining = {remaining_letters_required} for sofar={sofar} letters={letters} templ={template}")
+      debug_log(f"{'  ' * depth}    prefix: remaining = {remaining_letters_required} for sofar={sofar} letters={letters} templ={template}")
       for ch in to_search(letters):
           newletters = letters.replace(ch, "", 1)
           is_dot = ch == '.'
@@ -89,52 +90,53 @@ def recurse(
             if result.isword and len(template) == 0 and has_necessary(nextsofar, static):
               add_word(nextsofar, next_dot_vals, words) 
             elif result.isprefix:
-              rwords = recurse(static, nextsofar, cur_prefix_len + 1, cur_postfix_len, newletters, template, False, next_dot_vals)
+              rwords = recurse(depth+1, static, nextsofar, cur_prefix_len + 1, cur_postfix_len, newletters, template, False, next_dot_vals)
               for word, dot_vals in rwords.items():
                 add_word(word, dot_vals, words)
 
-    # template letter = '.' - try each letter from letters as match
-    if len(template) > 0 and template[0] == '.':
-      debug_log(f"    template dot: sofar={sofar} letters={letters} templ={template}")
-      for ch in to_search(letters):
-        newletters = letters.replace(ch, "", 1)
-        newtempl = template[1:]
-        is_dot = ch == '.'
-        chars = 'abcdefghijklmnopqrstuvwxyz' if is_dot else ch
-        for xch in chars:
-          nextsofar = sofar + xch
-          next_dot_vals = in_dot_vals + (xch if is_dot else "")
-          result = isprefix(nextsofar, static.dictwords, static.use_trie)
-          if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
-            add_word(nextsofar, next_dot_vals, words)
-          elif result.isprefix:
-            rwords = recurse(static, nextsofar, cur_prefix_len, cur_postfix_len, newletters, newtempl, True, next_dot_vals)
-            for word, dot_vals in rwords.items():
-              add_word(word, dot_vals, words)
-
-    # template letter ch != '.' - add ch.lower() and remove ch.lower() from input letters if ch.isupper()
-    elif len(template) > 0:
-      debug_log(f"    template NON-dot: sofar={sofar} letters={letters} templ={template}")
-      ch = template[0]
-      if ch.isupper():
-        ch = ch.lower()
-        if not ch in letters:
-          return words
-        letters = letters.replace(ch, "", 1)
-      nextsofar = sofar + ch
+  # template letter = '.' - try each letter from letters as match
+  if len(template) > 0 and template[0] == '.':
+    debug_log(f"{'  ' * depth}    template dot: sofar={sofar} letters={letters} templ={template}")
+    for ch in to_search(letters):
+      newletters = letters.replace(ch, "", 1)
       newtempl = template[1:]
-      result = isprefix(nextsofar, static.dictwords, static.use_trie)
-      if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
-        add_word(nextsofar, in_dot_vals, words)
-      elif result.isprefix:
-        rwords = recurse(static, nextsofar, cur_prefix_len, cur_postfix_len, letters, newtempl, True, in_dot_vals)
-        for word, dot_vals in rwords.items():
-          add_word(word, dot_vals, words)
+      is_dot = ch == '.'
+      chars = 'abcdefghijklmnopqrstuvwxyz' if is_dot else ch
+      for xch in chars:
+        nextsofar = sofar + xch
+        next_dot_vals = in_dot_vals + (xch if is_dot else "")
+        result = isprefix(nextsofar, static.dictwords, static.use_trie)
+        if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
+          add_word(nextsofar, next_dot_vals, words)
+        elif result.isprefix:
+          rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len, newletters, newtempl, True, next_dot_vals)
+          for word, dot_vals in rwords.items():
+            add_word(word, dot_vals, words)
+
+  # template letter ch != '.' - add ch.lower() and remove ch.lower() from input letters if ch.isupper()
+  elif len(template) > 0:
+    debug_log(f"{'  ' * depth}    template NON-dot: sofar={sofar} letters={letters} templ={template}")
+    ch = template[0]
+    if ch.isupper():
+      ch = ch.lower()
+      if not ch in letters:
+        return words
+      letters = letters.replace(ch, "", 1)
+    nextsofar = sofar + ch
+    newtempl = template[1:]
+    result = isprefix(nextsofar, static.dictwords, static.use_trie)
+    if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
+      add_word(nextsofar, in_dot_vals, words)
+    elif result.isprefix:
+      rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len, letters, newtempl, True, in_dot_vals)
+      for word, dot_vals in rwords.items():
+        add_word(word, dot_vals, words)
 
     return words
 
   # at end, add letters for the postfix
   elif cur_postfix_len < static.maxpostfix:
+    debug_log(f"{'  ' * depth}  postfix: sofar={sofar} letters={letters} templ={template}")
     for ch in to_search(letters):
       newletters = letters.replace(ch, "", 1)
       is_dot = ch == '.'
@@ -145,8 +147,8 @@ def recurse(
         result = isprefix(nextsofar, static.dictwords, static.use_trie)
         if result.isword and has_necessary(nextsofar, static):
           add_word(nextsofar, next_dot_vals, words)
-        elif result.isprefix:
-          rwords = recurse(static, nextsofar, cur_prefix_len, cur_postfix_len + 1, newletters, template, templstarted, next_dot_vals)
+        if result.isprefix:
+          rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len + 1, newletters, template, templstarted, next_dot_vals)
           for word, dot_vals in rwords.items():
             add_word(word, dot_vals, words)
 
@@ -214,7 +216,7 @@ def load_dict(use_trie: bool) -> Any:
 
 
 def find_words(static: StaticData, letters: str, template: str) -> None:
-  words: Dict[str, str] = recurse(static, "", 0, 0, letters, template, False)
+  words: Dict[str, str] = recurse(0, static, "", 0, 0, letters, template, False)
   found: Set[str] = sorted(set(
     filter(
       lambda w: w.lower() != template.lower(),

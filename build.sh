@@ -8,3 +8,6 @@ gcc wf.c -o wf -I$HOME/homebrew/Cellar/python@3.9/3.9.13_1/Frameworks/Python.fra
     -lpython3.9 -O2
 ./clean.sh
 
+if test "x$1" = "x-i"; then
+  mv wf ~/bin/
+fi
