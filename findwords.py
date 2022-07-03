@@ -159,6 +159,8 @@ def recurse(sofar: str, prefix: int, postfix: int, letters: str, template: str, 
       ch = template[0]
       if ch.isupper():
         ch = ch.lower()
+        if not ch in letters:
+          return words
         letters = letters.replace(ch, "", 1)
       nextsofar = sofar + ch
       newtempl = template[1:]
