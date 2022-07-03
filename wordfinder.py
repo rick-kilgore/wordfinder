@@ -208,13 +208,14 @@ def report_time(msg: str) -> float:
 
 def load_dict():
   global dictwords
-  pickle_filename = f"{os.environ.get('HOME')}/findwords/{sys.argv[0]}_words.pickle" 
+  bn = os.path.basename(sys.argv[0])
+  pickle_filename = f"{os.environ.get('HOME')}/wordfinder/{bn}_words.pickle" 
   if USE_TRIE and os.path.exists(pickle_filename):
     with open(pickle_filename, "rb") as picklefile:
       dictwords = pickle.load(picklefile)
 
   else:
-    with open(f"{os.environ.get('HOME')}/findwords/scrabble_words.txt") as dictfile:
+    with open(f"{os.environ.get('HOME')}/wordfinder/scrabble_words.txt") as dictfile:
       lines = dictfile.readlines()
       for line in lines:
         w = line.lower().strip()

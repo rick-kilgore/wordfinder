@@ -2,5 +2,5 @@ from setuptools import setup
 from Cython.Build import cythonize
 
 setup(
-  ext_modules = cythonize("fw.pyx")
+  ext_modules = cythonize("wf.pyx")
 )
