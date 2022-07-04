@@ -46,7 +46,8 @@ def has_necessary(word: str, static: StaticData) -> bool:
 
 def add_word(word: str, dot_vals: str, words: Dict[str, str]) -> None:
   debug_log(f"        add_word({word}, {dot_vals})")
-  words[word] = dot_vals
+  if word not in words or len(words[word]) > len(dot_vals):
+    words[word] = dot_vals
 
 
 def recurse(

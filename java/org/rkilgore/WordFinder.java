@@ -1,6 +1,9 @@
 package org.rkilgore;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -57,10 +60,11 @@ public class WordFinder {
       if (!templateStarted && curPrefixLen < this._maxPrefix && letters.length() > remainingLettersNeeded) {
         debugLog(String.format("%s    prefix: remaining = %d for sofar=%s letters=%s templ=%s",
                                new String(new char[depth*2]).replace((char)0, ' '),
+                               remainingLettersNeeded,
                                sofar, letters, template));
         for (char ch : rmDupes(letters).toCharArray()) {
-          String newletters = letters.replaceFirst(String.valueOf(ch), "");
           boolean isDot = ch == '.';
+          String newletters = letters.replaceFirst(isDot ? "\\." : String.valueOf(ch), "");
           char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
           for (char sch : searchChars) {
             String nextsofar = sofar + sch;
@@ -90,9 +94,9 @@ public class WordFinder {
                              new String(new char[depth*2]).replace((char)0, ' '),
                              sofar, letters, template));
       for (char ch : rmDupes(letters).toCharArray()) {
-        String newletters = letters.replaceFirst(String.valueOf(ch), "");
-        String newtemplate = template.substring(1);
         boolean isDot = ch == '.';
+        String newletters = letters.replaceFirst(isDot ? "\\." : String.valueOf(ch), "");
+        String newtemplate = template.substring(1);
         char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
         for (char sch : searchChars) {
           String nextsofar = sofar + sch;
@@ -138,8 +142,8 @@ public class WordFinder {
                              new String(new char[depth*2]).replace((char)0, ' '),
                              sofar, letters, template));
       for (char ch : rmDupes(letters).toCharArray()) {
-        String newletters = letters.replaceFirst(String.valueOf(ch), "");
         boolean isDot = ch == '.';
+        String newletters = letters.replaceFirst(isDot ? "\\." : String.valueOf(ch), "");
         char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
         for (char sch : searchChars) {
           String nextsofar = sofar + sch;
@@ -199,8 +203,10 @@ public class WordFinder {
 
   private void addWord(String word, String dotVals) {
     debugLog(String.format("        add_word(%s, %s)", word, dotVals));
-    String curDotVals = this._words.get(word);
-    this._words.put(word, curDotVals == null ? dotVals : curDotVals + ":" + dotVals);
+    String prevDotVals = this._words.get(word);
+    if (prevDotVals == null || dotVals.length() < prevDotVals.length()) {
+      this._words.put(word, dotVals);
+    }
   }
 
 
@@ -216,16 +222,31 @@ public class WordFinder {
 
 
   public static void main(String[] args) {
+    String letters = args[0];
+    String template = args.length > 1 ? args[1] : "";
+    int maxPrefix = args.length > 2 ? Integer.valueOf(args[2]) : 7;
+    int maxPostfix = args.length > 3 ? Integer.valueOf(args[3]) : 7;
+
     WordFinder.reportTime("laoding dictionary...");
     WordFinder wf = new WordFinder("./scrabble_words.txt");
     WordFinder.reportTime("loaded.");
 
-    Map<String, String> words = wf.findWords("oval", "", 7, 7);
+    Map<String, String> map = wf.findWords(letters, template, maxPrefix, maxPostfix);
     WordFinder.reportTime("findWords complete.");
 
-    for (String word : words.keySet()) {
-      String dotVals = words.get(word);
-      System.out.println(String.format("%s%s", dotVals.isEmpty() ? "" : dotVals+": ", word));
+    List<String> words = new ArrayList<>(map.keySet());
+    words.sort((a, b) -> {
+        if (a.length() != b.length()) {
+          return a.length() - b.length();
+        }
+        if (map.get(a).length() != map.get(b).length()) {
+          return map.get(a).length() - map.get(b).length();
+        }
+        return a.compareTo(b);
+    });
+    for (String word : words) {
+      String dotVals = map.get(word);
+      System.out.println(String.format("%s%s %d", dotVals.isEmpty() ? "" : dotVals+": ", word, word.length()));
     }
   }
 
