@@ -245,8 +245,10 @@ public class WordFinder {
         return a.compareTo(b);
     });
     for (String word : words) {
-      String dotVals = map.get(word);
-      System.out.println(String.format("%s%s %d", dotVals.isEmpty() ? "" : dotVals+": ", word, word.length()));
+      if (!word.equals(template)) {
+        String dotVals = map.get(word);
+        System.out.println(String.format("%s%s %d", dotVals.isEmpty() ? "" : dotVals+": ", word, word.length()));
+      }
     }
   }
 

@@ -218,7 +218,7 @@ def find_words(static: StaticData, letters: str, template: str) -> None:
   ordered_keys = list(words.keys())
   ordered_keys.sort(key=lambda w: [len(w), len(words[w]), w])
   for word in ordered_keys:
-    if word in words.keys():
+    if word != template:
       dot_vals: str = words[word]
       print((f"{dot_vals}: " if len(dot_vals) > 0 else "") + f"{word} {len(word)}")
 
