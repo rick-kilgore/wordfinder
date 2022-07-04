@@ -214,12 +214,10 @@ def load_dict(use_trie: bool) -> Any:
 
 def find_words(static: StaticData, letters: str, template: str) -> None:
   words: Dict[str, str] = recurse(0, static, "", 0, 0, letters, template, False)
-  found: Set[str] = sorted(set(
-    filter(
-      lambda w: w.lower() != template.lower(),
-      words.keys()
-    )), key=lambda w: len(w), reverse=False)
-  for word in found:
+
+  ordered_keys = list(words.keys())
+  ordered_keys.sort(key=lambda w: [len(w), len(words[w]), w])
+  for word in ordered_keys:
     if word in words.keys():
       dot_vals: str = words[word]
       print((f"{dot_vals}: " if len(dot_vals) > 0 else "") + f"{word} {len(word)}")
