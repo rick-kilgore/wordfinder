@@ -32,9 +32,8 @@ def debug_log(log: str) -> None:
 
 def to_search(letters: str) -> str:
   to_srch = ""
-  searched_already = ""
   for ch in letters:
-    if ch not in searched_already:
+    if ch not in to_srch:
       to_srch += ch
   return to_srch
 
@@ -89,7 +88,7 @@ def recurse(
             result = isprefix(nextsofar, static.dictwords, static.use_trie)
             if result.isword and len(template) == 0 and has_necessary(nextsofar, static):
               add_word(nextsofar, next_dot_vals, words) 
-            elif result.isprefix:
+            if result.isprefix:
               rwords = recurse(depth+1, static, nextsofar, cur_prefix_len + 1, cur_postfix_len, newletters, template, False, next_dot_vals)
               for word, dot_vals in rwords.items():
                 add_word(word, dot_vals, words)
@@ -108,7 +107,7 @@ def recurse(
         result = isprefix(nextsofar, static.dictwords, static.use_trie)
         if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
           add_word(nextsofar, next_dot_vals, words)
-        elif result.isprefix:
+        if result.isprefix:
           rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len, newletters, newtempl, True, next_dot_vals)
           for word, dot_vals in rwords.items():
             add_word(word, dot_vals, words)
@@ -127,12 +126,10 @@ def recurse(
     result = isprefix(nextsofar, static.dictwords, static.use_trie)
     if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
       add_word(nextsofar, in_dot_vals, words)
-    elif result.isprefix:
+    if result.isprefix:
       rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len, letters, newtempl, True, in_dot_vals)
       for word, dot_vals in rwords.items():
         add_word(word, dot_vals, words)
-
-    return words
 
   # at end, add letters for the postfix
   elif cur_postfix_len < static.maxpostfix:
@@ -152,8 +149,7 @@ def recurse(
           for word, dot_vals in rwords.items():
             add_word(word, dot_vals, words)
 
-    # don't run the code below if we're just adding letters at the end
-    return words
+  return words
 
 
 last_time = -1.0
