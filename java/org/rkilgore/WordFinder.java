@@ -5,12 +5,17 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 
 public class WordFinder {
 
   public WordFinder(String dictfilename) {
     this._dict = new TrieNode(dictfilename);
+  }
+
+  public WordFinder(Scanner scanner) {
+    this._dict = new TrieNode(scanner);
   }
 
 

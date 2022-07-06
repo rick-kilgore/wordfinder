@@ -1,6 +1,7 @@
 package org.rkilgore;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -14,9 +15,19 @@ public class TrieNode {
     this._isword = false;
   }
 
+  public TrieNode(Scanner dictFileScanner) {
+    this('*');
+    this.readFromFile(dictFileScanner);
+  }
+
   public TrieNode(String dictFilename) {
     this('*');
-    this.readFromFile(dictFilename);
+    try {
+      Scanner scanner = new Scanner(new File(dictFilename));
+      this.readFromFile(scanner);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   public TrieResult isPrefix(String prefix) {
@@ -32,9 +43,8 @@ public class TrieNode {
     return new TrieResult(true, node._isword);
   }
 
-  private void readFromFile(String dictFilename) {
+  private void readFromFile(Scanner scanner) {
     try {
-      Scanner scanner = new Scanner(new File(dictFilename));
       while (scanner.hasNextLine()) {
         String word = scanner.nextLine();
         this.insert(word);
