@@ -218,7 +218,7 @@ def find_words(static: StaticData, letters: str, template: str) -> None:
   ordered_keys = list(words.keys())
   ordered_keys.sort(key=lambda w: [len(w), len(words[w]), w])
   for word in ordered_keys:
-    if word != template:
+    if word != template.lower():
       dot_vals: str = words[word]
       print((f"{dot_vals}: " if len(dot_vals) > 0 else "") + f"{word} {len(word)}")
 
@@ -235,6 +235,15 @@ def main():
   template: str = sys.argv[2 + offset] if len(sys.argv) > 2 else ""
   maxprefix: int = int(sys.argv[3 + offset]) if len(sys.argv) > 3+offset else 7
   maxpostfix: int = int(sys.argv[4 + offset]) if len(sys.argv) > 4+offset else 7
+
+  # template can specify max prefix/postfix
+  if len(template) > 0:
+    if template[0].isnumeric():
+      maxprefix = int(template[0])
+      template = template[1:]
+    if template[-1].isnumeric():
+      maxpostfix = int(template[-1])
+      template = template[:-1]
 
   necessary_letters = necessary_chars(letters)
   letters = letters.lower()

@@ -20,6 +20,21 @@ public class WordFinder {
 
 
   public Map<String, String> findWords(String letters, String template, int maxPrefix, int maxPostfix) {
+
+    if (!template.isEmpty()) {
+      if (Character.isDigit(template.charAt(0))) {
+        maxPrefix = Character.digit(template.charAt(0), 10);
+        System.out.println("maxPrefix = " + maxPrefix);
+        template = template.substring(1);
+      }
+      int last = template.length() - 1;
+      if (Character.isDigit(template.charAt(last))) {
+        maxPostfix = Character.digit(template.charAt(last), 10);
+        System.out.println("maxPostfix = " + maxPostfix);
+        template = template.substring(0, last);
+      }
+    }
+
     String requiredLetters = calcRequiredLetters(letters);
     letters = letters.toLowerCase();
     this._requiredLetters = requiredLetters;
@@ -45,7 +60,7 @@ public class WordFinder {
 
     debugLog(String.format("%srecurse sofar=%s dotsSoFar=%s letters=%s template=%s prefix=%d postfix=%d "
                            + "templStarted=%s",
-                           new String(new char[depth*2]).replace((char)0, ' '),
+                           "  ".repeat(depth),
                            sofar, dotsSoFar, letters, template, curPrefixLen, curPostfixLen,
                            String.valueOf(templateStarted)));
 
@@ -64,7 +79,7 @@ public class WordFinder {
           ch -> ((char) ch) == '.' || Character.isUpperCase((char) ch)).count();
       if (!templateStarted && curPrefixLen < this._maxPrefix && letters.length() > remainingLettersNeeded) {
         debugLog(String.format("%s    prefix: remaining = %d for sofar=%s letters=%s templ=%s",
-                               new String(new char[depth*2]).replace((char)0, ' '),
+                               "  ".repeat(depth),
                                remainingLettersNeeded,
                                sofar, letters, template));
         for (char ch : rmDupes(letters).toCharArray()) {
@@ -250,7 +265,7 @@ public class WordFinder {
         return a.compareTo(b);
     });
     for (String word : words) {
-      if (!word.equals(template)) {
+      if (!word.equals(template.toLowerCase().replaceAll("\\d", ""))) {
         String dotVals = map.get(word);
         System.out.println(String.format("%s%s %d", dotVals.isEmpty() ? "" : dotVals+": ", word, word.length()));
       }
