@@ -2,10 +2,10 @@ from typing import List, Optional
 
 
 class TrieNode:
-  def __init__(self, ch: chr):
+  def __init__(self, ch: chr, isword: bool = False):
     self.ch: chr = ch
     self.children: List[TrieNode] = []
-    self.isword = False
+    self.isword: bool = isword
 
   def __str__(self) -> str:
     return self.strhelper(0).rstrip()
@@ -21,6 +21,9 @@ class TrieNode:
           s += childstr
     return s
 
+  def short_str(self) -> str:
+    return str(self.ch) + f": isword={self.isword}"
+
   def add(self, ch):
     if not self.children:
       child = TrieNode(ch)
@@ -35,10 +38,24 @@ class TrieNode:
     self.children.append(child)
     return child
 
-class TrieResult:
-  def __init__(self, isprefix: bool, isword: bool):
-    self.isprefix = isprefix
-    self.isword = isword
+  def isprefix(self, word) -> Optional:
+    node = self
+    for ch in word:
+      if not node.children:
+        return None
+
+      found = False
+      for child in node.children:
+        if child.ch == ch:
+          node = child
+          found = True
+          break
+
+      if not found:
+        return None
+
+    return node
+
 
 class Trie:
   def __init__(self):
@@ -53,21 +70,6 @@ class Trie:
       node = node.add(ch)
     node.isword = True
 
-  def isprefix(self, word) -> TrieResult:
-    node = self.trie
-    for ch in word:
-      if not node.children:
-        return TrieResult(False, False)
-
-      found = False
-      for child in node.children:
-        if child.ch == ch:
-          node = child
-          found = True
-          break
-
-      if not found:
-        return TrieResult(False, False)
-
-    return TrieResult(True, node.isword)
+  def isprefix(self, word) -> Optional[TrieNode]:
+    return self.trie.isprefix(word)
 

@@ -5,11 +5,11 @@ import pickle
 import sys
 import time
 from functools import reduce
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
-DEBUG = 0
+DEBUG = False
 
-from trie import Trie, TrieResult
+from trie import Trie, TrieNode
 
 
 class StaticData:
@@ -27,6 +27,7 @@ class StaticData:
 
 
 def debug_log(log: str) -> None:
+  global DEBUG
   if DEBUG:
     print(log)
 
@@ -44,8 +45,8 @@ def has_necessary(word: str, static: StaticData) -> bool:
   return True
 
 
-def add_word(word: str, dot_vals: str, words: Dict[str, str]) -> None:
-  debug_log(f"        add_word({word}, {dot_vals})")
+def add_word(word: str, dot_vals: str, words: Dict[str, str], label: str = "") -> None:
+  debug_log(f"{label}add_word({word}, {dot_vals})")
   if word not in words or len(words[word]) > len(dot_vals):
     words[word] = dot_vals
 
@@ -53,14 +54,16 @@ def add_word(word: str, dot_vals: str, words: Dict[str, str]) -> None:
 def recurse(
     depth: int,
     static: StaticData,
-    sofar: str, cur_prefix_len: int, cur_postfix_len: int,
+    sofar: str, curnode: Optional[TrieNode],
+    cur_prefix_len: int, cur_postfix_len: int,
     letters: str, template: str, templstarted: bool,
     in_dot_vals: str = "",
 ) -> Dict[str, str]:
 
+  log_indent = '    ' * depth
   debug_log(
-      f"{'  ' * depth}recurse sofar={sofar} prefix={cur_prefix_len} postfix={cur_postfix_len} "
-      f"letters={letters} template={template} tstarted={templstarted} in_dot_vals={in_dot_vals}")
+      f"{log_indent}recurse sofar={sofar} prefix={cur_prefix_len} postfix={cur_postfix_len} "
+      f"letters='{letters}' template='{template}'")
   noLetters = len(letters) == 0
   emptyTemplate = len(template) == 0
   nextTemplateIsLetter = not emptyTemplate and template[0] != '.'
@@ -69,7 +72,7 @@ def recurse(
       (noLetters and not nextTemplateIsLetter) or
       (emptyTemplate and cantAddPostfix)
   ):
-    debug_log(f"    short return: sofar={sofar} letters={letters} templ={template}")
+    debug_log(f"{log_indent}  short return: sofar={sofar} letters={letters} templ={template}")
     return {}
 
   words = {}
@@ -78,7 +81,7 @@ def recurse(
     # try adding ch from letters to prefix before template
     remaining_letters_required = reduce(lambda tot, ch: tot + (1 if ch == '.' or ch.isupper() else 0), [0] + list(template))
     if not templstarted and cur_prefix_len < static.maxprefix and len(letters) > remaining_letters_required:
-      debug_log(f"{'  ' * depth}    prefix: remaining = {remaining_letters_required} for sofar={sofar} letters={letters} templ={template}")
+      debug_log(f"{log_indent}  prefix: remaining = {remaining_letters_required} for sofar={sofar} letters='{letters}' templ='{template}'")
       for ch in to_search(letters):
           newletters = letters.replace(ch, "", 1)
           is_dot = ch == '.'
@@ -86,37 +89,43 @@ def recurse(
           for xch in chars:
             nextsofar = sofar + xch
             next_dot_vals = in_dot_vals + (xch if is_dot else "")
-            result = isprefix(nextsofar, static.dictwords, static.use_trie)
-            if result.isword and len(template) == 0 and has_necessary(nextsofar, static):
-              add_word(nextsofar, next_dot_vals, words) 
-            if result.isprefix:
-              rwords = recurse(depth+1, static, nextsofar, cur_prefix_len + 1, cur_postfix_len, newletters, template, False, next_dot_vals)
+            nextnode = isprefix(nextsofar, static.dictwords, curnode, static.use_trie)
+            debug_log(f"{log_indent}  isprefix({nextsofar}, {curnode.short_str() if curnode else None}) -> {nextnode.short_str() if nextnode else None}")
+            if nextnode is not None:
+              if nextnode.isword and len(template) == 0 and has_necessary(nextsofar, static):
+                add_word(nextsofar, next_dot_vals, words, f"{log_indent}  {xch} -> prefix:") 
+
+              rwords = recurse(depth+1, static, nextsofar, nextnode, cur_prefix_len + 1, cur_postfix_len,
+                               newletters, template, False, next_dot_vals)
               for word, dot_vals in rwords.items():
-                add_word(word, dot_vals, words)
+                add_word(word, dot_vals, words, f"{log_indent}  from recurse after {xch} -> prefix:")
 
   # template letter = '.' - try each letter from letters as match
   if len(template) > 0 and template[0] == '.':
-    debug_log(f"{'  ' * depth}    template dot: sofar={sofar} letters={letters} templ={template}")
     for ch in to_search(letters):
       newletters = letters.replace(ch, "", 1)
       newtempl = template[1:]
       is_dot = ch == '.'
       chars = 'abcdefghijklmnopqrstuvwxyz' if is_dot else ch
       for xch in chars:
+        debug_log(f"{log_indent}  use letter '{xch}' from: sofar={sofar} letters='{letters}' templ='{template}'")
         nextsofar = sofar + xch
         next_dot_vals = in_dot_vals + (xch if is_dot else "")
-        result = isprefix(nextsofar, static.dictwords, static.use_trie)
-        if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
-          add_word(nextsofar, next_dot_vals, words)
-        if result.isprefix:
-          rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len, newletters, newtempl, True, next_dot_vals)
+        nextnode = isprefix(nextsofar, static.dictwords, curnode, static.use_trie)
+        debug_log(f"{log_indent}  isprefix({nextsofar}, {curnode.short_str() if curnode else None}) -> {nextnode.short_str() if nextnode else None}")
+        if nextnode is not None:
+          if nextnode.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
+            add_word(nextsofar, next_dot_vals, words, f"{log_indent}  template dot {xch}:")
+
+          rwords = recurse(depth+1, static, nextsofar, nextnode, cur_prefix_len, cur_postfix_len,
+                           newletters, newtempl, True, next_dot_vals)
           for word, dot_vals in rwords.items():
-            add_word(word, dot_vals, words)
+            add_word(word, dot_vals, words, f"{log_indent}  from recurse after template dot {xch}:")
 
   # template letter ch != '.' - add ch.lower() and remove ch.lower() from input letters if ch.isupper()
   elif len(template) > 0:
-    debug_log(f"{'  ' * depth}    template NON-dot: sofar={sofar} letters={letters} templ={template}")
     ch = template[0]
+    debug_log(f"{log_indent}  take template '{ch}' from: sofar={sofar} letters='{letters}' templ='{template}'")
     if ch.isupper():
       ch = ch.lower()
       if not ch in letters:
@@ -124,17 +133,21 @@ def recurse(
       letters = letters.replace(ch, "", 1)
     nextsofar = sofar + ch
     newtempl = template[1:]
-    result = isprefix(nextsofar, static.dictwords, static.use_trie)
-    if result.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
-      add_word(nextsofar, in_dot_vals, words)
-    if result.isprefix:
-      rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len, letters, newtempl, True, in_dot_vals)
+    nextnode = isprefix(nextsofar, static.dictwords, curnode, static.use_trie)
+    debug_log(f"{log_indent}  isprefix({nextsofar}, {curnode.short_str() if curnode else None}) -> {nextnode.short_str() if nextnode else None}")
+    if nextnode is not None:
+      if nextnode.isword and len(newtempl) == 0 and has_necessary(nextsofar, static):
+        add_word(nextsofar, in_dot_vals, words, f"{log_indent}  template letter {ch}:")
+
+      rwords = recurse(depth+1, static, nextsofar, nextnode, cur_prefix_len, cur_postfix_len,
+                       letters, newtempl, True, in_dot_vals)
       for word, dot_vals in rwords.items():
-        add_word(word, dot_vals, words)
+        add_word(word, dot_vals, words, f"{log_indent}  from recurse after template letter {ch}:")
+
 
   # at end, add letters for the postfix
   elif cur_postfix_len < static.maxpostfix:
-    debug_log(f"{'  ' * depth}  postfix: sofar={sofar} letters={letters} templ={template}")
+    debug_log(f"{log_indent}  postfix: sofar={sofar} letters='{letters}' templ='{template}'")
     for ch in to_search(letters):
       newletters = letters.replace(ch, "", 1)
       is_dot = ch == '.'
@@ -142,13 +155,16 @@ def recurse(
       for xch in chars:
         nextsofar = sofar + xch
         next_dot_vals = in_dot_vals + (xch if is_dot else "")
-        result = isprefix(nextsofar, static.dictwords, static.use_trie)
-        if result.isword and has_necessary(nextsofar, static):
-          add_word(nextsofar, next_dot_vals, words)
-        if result.isprefix:
-          rwords = recurse(depth+1, static, nextsofar, cur_prefix_len, cur_postfix_len + 1, newletters, template, templstarted, next_dot_vals)
+        nextnode = isprefix(nextsofar, static.dictwords, curnode, static.use_trie)
+        debug_log(f"{log_indent}  isprefix({nextsofar}, {curnode.short_str() if curnode else None}) -> {nextnode.short_str() if nextnode else None}")
+        if nextnode is not None:
+          if nextnode.isword and has_necessary(nextsofar, static):
+            add_word(nextsofar, next_dot_vals, words, f"{log_indent}  {xch} -> postfix:")
+
+          rwords = recurse(depth+1, static, nextsofar, nextnode, cur_prefix_len, cur_postfix_len + 1,
+                           newletters, template, templstarted, next_dot_vals)
           for word, dot_vals in rwords.items():
-            add_word(word, dot_vals, words)
+            add_word(word, dot_vals, words, f"{log_indent}  from recurse after {xch} -> postfix:")
 
   return words
 
@@ -170,11 +186,12 @@ def add_dictword(word: str, dictwords: Any, use_trie: bool) -> None:
   else:
     dictwords[word] = 1
 
-def isprefix(prefix: str, dictwords: Any, use_trie: bool) -> TrieResult:
+def isprefix(prefix: str, dictwords: Any, node: Optional[TrieNode], use_trie: bool) -> Optional[TrieNode]:
   if use_trie:
-    return dictwords.isprefix(prefix)
+    return node.isprefix(prefix[-1]) if node else dictwords.isprefix(prefix)
   else:
-    return TrieResult(True, prefix in dictwords)
+    isword = prefix in dictwords
+    return TrieNode(prefix[-1], isword)
 
 def necessary_chars(letters: str) -> str:
   necessary = ""
@@ -208,12 +225,14 @@ def load_dict(use_trie: bool) -> Any:
         report_time(f"writing dictionary to {pickle_filename}")
         with open(pickle_filename, "wb") as picklefile:
           pickle.dump(dictwords, picklefile)
+      else:
+        report_time(f"dictwords contains {len(dictwords)} words")
 
       return dictwords
 
 
 def find_words(static: StaticData, letters: str, template: str) -> None:
-  words: Dict[str, str] = recurse(0, static, "", 0, 0, letters, template, False)
+  words: Dict[str, str] = recurse(0, static, "", None, 0, 0, letters, template, False)
 
   ordered_keys = list(words.keys())
   ordered_keys.sort(key=lambda w: [len(w), len(words[w]), w])
@@ -225,16 +244,23 @@ def find_words(static: StaticData, letters: str, template: str) -> None:
 
 # main
 def main():
-  offset = 0
+  argn = 1
   use_trie = False
-  if sys.argv[1] == "-t":
-    use_trie = True
-    offset = 1
+  override_map = False
+  while sys.argv[argn].startswith("-"):
+    if sys.argv[argn] == "-t":
+      use_trie = True
+    elif sys.argv[argn] == "-d":
+      global DEBUG
+      DEBUG = True
+    elif sys.argv[argn] == "-m":
+      override_map = True
+    argn += 1
 
-  letters: str = sys.argv[1 + offset]
-  template: str = sys.argv[2 + offset] if len(sys.argv) > 2 else ""
-  maxprefix: int = int(sys.argv[3 + offset]) if len(sys.argv) > 3+offset else 7
-  maxpostfix: int = int(sys.argv[4 + offset]) if len(sys.argv) > 4+offset else 7
+  letters: str = sys.argv[argn]; argn += 1
+  template: str = sys.argv[argn] if len(sys.argv) > argn else ""; argn += 1
+  maxprefix: int = int(sys.argv[argn]) if len(sys.argv) > argn else 7; argn += 1
+  maxpostfix: int = int(sys.argv[argn]) if len(sys.argv) > argn else 7; argn += 1
 
   # template can specify max prefix/postfix
   if len(template) > 0:
@@ -248,18 +274,19 @@ def main():
   necessary_letters = necessary_chars(letters)
   letters = letters.lower()
 
-  maxdots = 2
-  for i, arg in enumerate([letters, template]):
-    dotcount = 0
-    for ch in arg:
-      if ch == '.':
-        dotcount += 1
-      elif not ch.isalpha():
-        print(f"string args must be all letters and '.' chars: {arg}")
-        sys.exit(1)
-    if i == 0 and dotcount > maxdots:
-      print(f"using trie because {dotcount} dots (>{maxdots}) in letters")
-      use_trie = True
+  if not override_map:
+    maxdots = 3
+    for i, arg in enumerate([letters, template]):
+      dotcount = 0
+      for ch in arg:
+        if ch == '.':
+          dotcount += 1
+        elif not ch.isalpha():
+          print(f"string args must be all letters and '.' chars: {arg}")
+          sys.exit(1)
+      if i == 0 and dotcount > maxdots:
+        print(f"using trie because {dotcount} dots (>{maxdots}) in letters")
+        use_trie = True
 
   report_time("starting")
   dictwords = load_dict(use_trie)
