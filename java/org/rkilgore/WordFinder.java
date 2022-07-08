@@ -8,7 +8,72 @@ import java.util.Map;
 import java.util.Scanner;
 
 
+/**
+ * This class is currently NOT thread-safe because of the following
+ * instance variables used for a single search:
+ *    _requiredLetters
+ *    _maxPrefix
+ *    _maxPostfix
+ *    _words
+ */
 public class WordFinder {
+
+  static class Tile {
+    public static Tile EMPTY = new Tile("empty");
+    public static Tile DLETTER = new Tile("DL", 2, 1);
+    public static Tile TLETTER = new Tile("TL", 3, 1);
+    public static Tile DWORD = new Tile("DW", 1, 2);
+    public static Tile TWORD = new Tile("TW", 1, 3);
+    public static Tile forLetter(char letter) {
+      return new Tile(letter);
+    }
+    public static Tile forEmptyUseLetter(char letter) {
+      Tile tile = forLetter(letter);
+      tile.empty = true;
+      return tile;
+    }
+
+    Tile(String name) {
+      this.name = name;
+      this.empty = true;
+      this.letter = (char) 0;
+      this.letterMult = 1;
+      this.wordMult = 1;
+    }
+
+    Tile(char letter) {
+      this("letter " + letter);
+      this.empty = false;
+      this.letter = letter;
+    }
+
+    Tile(String name, int letterMult, int wordMult) {
+      this(name);
+      this.letterMult = letterMult;
+      this.wordMult = wordMult;
+    }
+
+    public String toString() {
+      return this.name;
+    }
+
+    public boolean hasLetter() {
+      return this.letter != (char) 0;
+    }
+
+    public String name;
+    public boolean empty;
+    public char letter;
+    public int letterMult;
+    public int wordMult;
+  }
+
+  enum LetterPlacement {
+    PREFIX,
+    TEMPLATE,
+    POSTFIX
+  }
+
 
   public WordFinder(String dictfilename) {
     this._dict = new TrieNode(dictfilename);
@@ -35,6 +100,19 @@ public class WordFinder {
       }
     }
 
+    List<Tile> tiles = new ArrayList<Tile>();
+    for (char ch : template.toCharArray()) {
+      if (ch == '.') {
+        tiles.add(Tile.EMPTY);
+      } else if (Character.isUpperCase(ch)) {
+        tiles.add(Tile.forEmptyUseLetter(Character.toLowerCase(ch)));
+      } else if (Character.isLetter(ch)) {
+        tiles.add(Tile.forLetter(ch));
+      } else {
+        throw new RuntimeException(String.format("Unrecognized character in template: '%c'", ch));
+      }
+    }
+
     String requiredLetters = calcRequiredLetters(letters);
     letters = letters.toLowerCase();
     this._requiredLetters = requiredLetters;
@@ -42,7 +120,7 @@ public class WordFinder {
     this._maxPostfix = maxPostfix;
     this._words = new HashMap<String, String>();
     recurse(0 /* depth */, "" /* sofar */, "" /* dotsSoFar */,
-            letters, template, false /* templateStarted */,
+            letters, tiles, false /* templateStarted */,
             0 /* curPrefixLen */, 0 /* curPostfixLen */);
     return this._words;
   }
@@ -53,7 +131,7 @@ public class WordFinder {
       String sofar,
       String dotsSoFar,
       String letters,
-      String template,
+      List<Tile> template,
       boolean templateStarted,
       int curPrefixLen,
       int curPostfixLen) {
@@ -64,7 +142,7 @@ public class WordFinder {
                            sofar, dotsSoFar, letters, template, curPrefixLen, curPostfixLen,
                            String.valueOf(templateStarted)));
 
-    boolean nextTemplateIsLetter = !template.isEmpty() && template.charAt(0) != '.';
+    boolean nextTemplateIsLetter = !template.isEmpty() && !template.get(0).empty;
     boolean cantAddPostfix = curPostfixLen == this._maxPostfix;
     if ((letters.isEmpty() && !nextTemplateIsLetter) ||
         (template.isEmpty() && cantAddPostfix)) {
@@ -75,107 +153,99 @@ public class WordFinder {
 
     if (!template.isEmpty()) {
       // try adding ch from letters to prefix before template
-      int remainingLettersNeeded = (int) template.chars().filter(
-          ch -> ((char) ch) == '.' || Character.isUpperCase((char) ch)).count();
+      int remainingLettersNeeded = (int) template.stream().filter(tile -> tile.empty).count();
       if (!templateStarted && curPrefixLen < this._maxPrefix && letters.length() > remainingLettersNeeded) {
         debugLog(String.format("%s    prefix: remaining = %d for sofar=%s letters=%s templ=%s",
                                "  ".repeat(depth),
                                remainingLettersNeeded,
                                sofar, letters, template));
-        for (char ch : rmDupes(letters).toCharArray()) {
-          boolean isDot = ch == '.';
-          String newletters = letters.replaceFirst(isDot ? "\\." : String.valueOf(ch), "");
-          char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
-          for (char sch : searchChars) {
-            String nextsofar = sofar + sch;
-            String nextDotsSoFar = dotsSoFar + (isDot ? String.valueOf(sch) : "");
-            TrieResult result = _dict.isPrefix(nextsofar);
-            if (result.isword && template.isEmpty() && hasRequiredLetters(nextsofar)) {
-              addWord(nextsofar, nextDotsSoFar);
-            } else if (result.isprefix) {
-              // Map<String, String> rwords =
-                recurse(depth+1, nextsofar, nextDotsSoFar,
-                        newletters, template, false, curPrefixLen+1, curPostfixLen);
-              /*
-              for (String word : rwords.keySet()) {
-                addWord(word, rwords[word]);
-              }
-              */
-            }
-          }
-        }
+
+        addLetterFromLettersAndRecurse(
+            depth, sofar, dotsSoFar, letters, template, curPrefixLen, curPostfixLen, LetterPlacement.PREFIX);
       }
     }
 
 
-    // template letter = '.' - try each letter from letters as match
-    if (!template.isEmpty() && template.charAt(0) == '.') {
-      debugLog(String.format("%s    template dot: sofar=%s letters=%s templ=%s",
-                             new String(new char[depth*2]).replace((char)0, ' '),
-                             sofar, letters, template));
-      for (char ch : rmDupes(letters).toCharArray()) {
-        boolean isDot = ch == '.';
-        String newletters = letters.replaceFirst(isDot ? "\\." : String.valueOf(ch), "");
-        String newtemplate = template.substring(1);
-        char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
-        for (char sch : searchChars) {
-          String nextsofar = sofar + sch;
-          String nextDotsSoFar = dotsSoFar + (isDot ? String.valueOf(sch) : "");
-          TrieResult result = this._dict.isPrefix(nextsofar);
-          if (result.isword && newtemplate.isEmpty() && hasRequiredLetters(nextsofar)) {
-            addWord(nextsofar, nextDotsSoFar);
-          }
-          if (result.isprefix) {
-            recurse(depth+1, nextsofar, nextDotsSoFar,
-                    newletters, newtemplate, true, curPrefixLen, curPostfixLen);
-          }
-        }
-      }
-    } else if (!template.isEmpty()) {
-      // template letter ch != '.' - add ch.lower() and remove ch.lower() from input letters if ch.isupper()
-      debugLog(String.format("%s    template NON-dot: sofar=%s letters=%s templ=%s",
-                             new String(new char[depth*2]).replace((char)0, ' '),
-                             sofar, letters, template));
-
-      // if template character is uppercase, use letter from letters
-      char ch = template.charAt(0);
-      if (Character.isUpperCase(ch)) {
-        ch = Character.toLowerCase(ch);
+    if (!template.isEmpty() && template.get(0).empty) {
+      // empty tile - two types
+      Tile nextTile = template.get(0);
+      if (nextTile.hasLetter()) {
+        // empty tile for which user has requested to put one of their
+        // letters in this spot
+        debugLog(String.format("%s   empty tile - take '%c' from letters: sofar=%s letters=%s templ=%s",
+                               "  ".repeat(depth),
+                               nextTile.letter, sofar, letters, template));
+        char ch = nextTile.letter;
         if (letters.indexOf(ch) == -1) {
+          // can't fulfill this request
           return;
         }
         letters = letters.replaceFirst(String.valueOf(ch), "");
+        addLetterFromTemplateAndRecurse(depth, sofar, dotsSoFar, letters, template, curPrefixLen, curPostfixLen);
+
+      } else {
+        // plain old empty tile
+        debugLog(String.format("%s    empty tile: sofar=%s letters=%s templ=%s",
+                               "  ".repeat(depth),
+                               sofar, letters, template));
+
+        addLetterFromLettersAndRecurse(
+            depth, sofar, dotsSoFar, letters, template, curPrefixLen, curPostfixLen, LetterPlacement.TEMPLATE);
       }
-      String nextsofar = sofar + ch;
-      String newtemplate = template.substring(1);
-      TrieResult result = this._dict.isPrefix(nextsofar);
-      if (result.isword && newtemplate.isEmpty() && hasRequiredLetters(nextsofar)) {
-        addWord(nextsofar, dotsSoFar);
-      }
-      if (result.isprefix) {
-        recurse(depth+1, nextsofar, dotsSoFar,
-                letters, newtemplate, true, curPrefixLen, curPostfixLen);
-      }
+    } else if (!template.isEmpty()) {
+      // template letter tile - add letter from template
+      addLetterFromTemplateAndRecurse(depth, sofar, dotsSoFar, letters, template, curPrefixLen, curPostfixLen);
+
     } else if (curPostfixLen < this._maxPostfix) {
       // at end, add letters for the postfix
       debugLog(String.format("%s    postfix: sofar=%s letters=%s templ=%s",
-                             new String(new char[depth*2]).replace((char)0, ' '),
+                             "  ".repeat(depth),
                              sofar, letters, template));
-      for (char ch : rmDupes(letters).toCharArray()) {
-        boolean isDot = ch == '.';
-        String newletters = letters.replaceFirst(isDot ? "\\." : String.valueOf(ch), "");
-        char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
-        for (char sch : searchChars) {
-          String nextsofar = sofar + sch;
-          String nextDotsSoFar = dotsSoFar + (isDot ? String.valueOf(sch) : "");
-          TrieResult result = this._dict.isPrefix(nextsofar);
-          if (result.isword && hasRequiredLetters(nextsofar)) {
-            addWord(nextsofar, nextDotsSoFar);
-          }
-          if (result.isprefix) {
-            recurse(depth+1, nextsofar, nextDotsSoFar,
-                    newletters, template, true, curPrefixLen, curPostfixLen+1);
-          }
+
+      addLetterFromLettersAndRecurse(
+          depth, sofar, dotsSoFar, letters, template, curPrefixLen, curPostfixLen, LetterPlacement.POSTFIX);
+    }
+  }
+
+  private void addLetterFromTemplateAndRecurse(
+        int depth, String sofar, String dotsSoFar, String letters, List<Tile> template,
+        int curPrefixLen, int curPostfixLen) {
+    Tile nextTile = template.get(0);
+    char ch = nextTile.letter;
+    String nextsofar = sofar + ch;
+    List<Tile> newtemplate = template.subList(1, template.size());
+    TrieResult result = this._dict.isPrefix(nextsofar);
+    if (result.isword && newtemplate.isEmpty() && hasRequiredLetters(nextsofar)) {
+      addWord(nextsofar, dotsSoFar);
+    }
+    if (result.isprefix) {
+      recurse(depth+1, nextsofar, dotsSoFar,
+              letters, newtemplate, true, curPrefixLen, curPostfixLen);
+    }
+  }
+
+  private void addLetterFromLettersAndRecurse(
+        int depth, String sofar, String dotsSoFar, String letters, List<Tile> template,
+        int curPrefixLen, int curPostfixLen, LetterPlacement placement) {
+    for (char ch : rmDupes(letters).toCharArray()) {
+      boolean isDot = ch == '.';
+      String newletters = letters.replaceFirst(isDot ? "\\." : String.valueOf(ch), "");
+      List<Tile> newtemplate = placement == LetterPlacement.TEMPLATE ? template.subList(1, template.size()) : template;
+      int nextPre = placement == LetterPlacement.PREFIX ? curPrefixLen + 1 : curPrefixLen;
+      int nextPost = placement == LetterPlacement.POSTFIX ? curPostfixLen + 1 : curPostfixLen;
+      boolean nextTemplateStarted = placement != LetterPlacement.PREFIX;
+
+      char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
+      for (char sch : searchChars) {
+        String nextsofar = sofar + sch;
+        String nextDotsSoFar = dotsSoFar + (isDot ? String.valueOf(sch) : "");
+        TrieResult result = this._dict.isPrefix(nextsofar);
+        if (result.isword && newtemplate.isEmpty() && hasRequiredLetters(nextsofar)) {
+          addWord(nextsofar, nextDotsSoFar);
+        }
+        if (result.isprefix) {
+          recurse(depth+1, nextsofar, nextDotsSoFar,
+                  newletters, newtemplate, nextTemplateStarted, nextPre, nextPost);
         }
       }
     }
