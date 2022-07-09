@@ -11,7 +11,8 @@ import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 
-import org.rkilgore.WordFinder
+import org.rkilgore.wordfinder.WordFinder
+import org.rkilgore.wordfinder.WordInfo
 import java.util.*
 import kotlin.Comparator
 
@@ -63,14 +64,19 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
             val words = ArrayList<String>(map.keys)
             words.sortWith(Comparator { a: String, b: String ->
                 run {
+                    val ainf = map[a]!!
+                    val binf = map[b]!!
+                    if (ainf.score != binf.score) {
+                        return@run binf.score - ainf.score
+                    }
                     if (a.length != b.length) {
                         return@run b.length - a.length
                     }
-                    if (map?.get(a)?.length!! != map[b]?.length!!) {
-                        return@run map[a]?.length!! - map[b]?.length!!
+                    if (ainf.dotVals.length != ainf.dotVals.length) {
+                        return@run ainf.dotVals.length - binf.dotVals.length
                     }
-                    if (map[a]!! != map[b]!!) {
-                        return@run map[a]!!.compareTo(map[b]!!)
+                    if (ainf.dotVals != binf.dotVals) {
+                        return@run ainf.dotVals.compareTo(binf.dotVals)
                     }
                     return@run a.compareTo(b);
                 }
@@ -78,9 +84,10 @@ class MainActivity : AppCompatActivity(), View.OnKeyListener {
 
             val sb = StringBuilder()
             for (word in words) {
-                val dotVals: String = map?.get(word)!!
-                val prefix: String = if (dotVals.isNotEmpty()) "$dotVals: " else ""
-                sb.append(String.format("%s%s %d\n", prefix, word, word.length))
+                val winf: WordInfo = map[word]!!
+                val dotVals: String = winf.dotVals
+                val dots: String = if (dotVals.isNotEmpty()) "$dotVals: " else ""
+                sb.append(String.format("%s%s score: %d\n", dots, word, winf.score))
             }
             runOnUiThread {
                 spinner.visibility = View.GONE

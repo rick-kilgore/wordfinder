@@ -1,4 +1,4 @@
-package org.rkilgore;
+package org.rkilgore.wordfinder;
 
 public class TrieTest {
 

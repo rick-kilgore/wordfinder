@@ -1,12 +1,10 @@
-package org.rkilgore;
+package org.rkilgore.wordfinder;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-import static java.util.Map.entry;
 
 
 /**
@@ -75,25 +73,35 @@ public class WordFinder {
     POSTFIX
   }
 
-  static Map<Character, Integer> letterScores = Map.ofEntries(
-      entry('a', 1), entry('b', 3), entry('c', 3), entry('d', 2),
-      entry('e', 1), entry('f', 4), entry('g', 3), entry('h', 4),
-      entry('i', 1), entry('j', 10), entry('k', 5), entry('l', 1),
-      entry('m', 3), entry('n', 2), entry('o', 1), entry('p', 3),
-      entry('q', 11), entry('r', 1), entry('s', 1), entry('t', 1),
-      entry('u', 3), entry('v', 4), entry('w', 4), entry('x', 8),
-      entry('y', 4), entry('z', 11)
-  );
-
-
-  static class WordInfo {
-    public WordInfo(int score, String dotVals) {
-      this.score = score;
-      this.dotVals = dotVals;
-    }
-
-    public int score;
-    public String dotVals;
+  static Map<Character, Integer> letterScores;
+  static {
+    letterScores = new HashMap<>();
+    letterScores.put('a', 1);
+    letterScores.put('b', 3);
+    letterScores.put('c', 3);
+    letterScores.put('d', 2);
+    letterScores.put('e', 1);
+    letterScores.put('f', 4);
+    letterScores.put('g', 3);
+    letterScores.put('h', 4);
+    letterScores.put('i', 1);
+    letterScores.put('j', 10);
+    letterScores.put('k', 5);
+    letterScores.put('l', 1);
+    letterScores.put('m', 3);
+    letterScores.put('n', 2);
+    letterScores.put('o', 1);
+    letterScores.put('p', 3);
+    letterScores.put('q', 11);
+    letterScores.put('r', 1);
+    letterScores.put('s', 1);
+    letterScores.put('t', 1);
+    letterScores.put('u', 3);
+    letterScores.put('v', 4);
+    letterScores.put('w', 4);
+    letterScores.put('x', 8);
+    letterScores.put('y', 4);
+    letterScores.put('z', 11);
   }
 
 
@@ -126,10 +134,14 @@ public class WordFinder {
     for (char ch : template.toCharArray()) {
       if (ch == '.') {
         tiles.add(Tile.EMPTY);
-      } else if (ch == ',') {
+      } else if (ch == '-') {
+        tiles.add(Tile.DLETTER);
+      } else if (ch == '+') {
         tiles.add(Tile.TLETTER);
-      } else if (ch == '_') {
+      } else if (ch == '#') {
         tiles.add(Tile.DWORD);
+      } else if (ch == '!') {
+        tiles.add(Tile.TWORD);
       } else if (Character.isUpperCase(ch)) {
         tiles.add(Tile.forEmptyUseLetter(Character.toLowerCase(ch)));
       } else if (Character.isLetter(ch)) {

@@ -1,4 +1,4 @@
-package org.rkilgore;
+package org.rkilgore.wordfinder;
 
 public class TrieResult {
   public TrieResult(boolean isprefix, boolean isword) {
