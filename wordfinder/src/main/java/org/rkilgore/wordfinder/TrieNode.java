@@ -2,16 +2,17 @@ package org.rkilgore.wordfinder;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
+import lombok.EqualsAndHashCode;
 
+@EqualsAndHashCode
 public class TrieNode {
   public TrieNode(char ch) {
     this.ch = ch;
     this.isword = false;
-    this._children = new ArrayList<TrieNode>();
+    this._children = new HashMap<Character, TrieNode>();
   }
 
   public TrieNode(Scanner dictFileScanner) {
@@ -33,11 +34,10 @@ public class TrieNode {
     TrieNode node = this;
     char[] chars = prefix.toLowerCase().toCharArray();
     for (char ch : chars) {
-      Optional<TrieNode> child = node._children.stream().filter(tn -> tn.ch == ch).findFirst();
-      if (!child.isPresent()) {
+      node = node._children.get(ch);
+      if (node == null) {
         return null;
       }
-      node = child.get();
     }
     return node;
   }
@@ -63,16 +63,15 @@ public class TrieNode {
   }
 
   private TrieNode getOrCreateChild(char ch) {
-    Optional<TrieNode> opt = this._children.stream().filter(tn -> tn.ch == ch).findFirst();
-    if (opt.isPresent()) {
-      return opt.get();
+    TrieNode child = this._children.get(ch);
+    if (child == null) {
+      child = new TrieNode(ch);
+      this._children.put(ch, child);
     }
-    TrieNode child = new TrieNode(ch);
-    this._children.add(child);
     return child;
   }
 
   private char ch;
   public boolean isword;
-  private List<TrieNode> _children;
+  private Map<Character, TrieNode> _children;
 }

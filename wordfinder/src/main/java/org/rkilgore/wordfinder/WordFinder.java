@@ -378,7 +378,7 @@ public class WordFinder {
     int maxPrefix = args.length > 2 ? Integer.valueOf(args[2]) : 7;
     int maxPostfix = args.length > 3 ? Integer.valueOf(args[3]) : 7;
 
-    WordFinder.reportTime("laoding dictionary...");
+    WordFinder.reportTime("loading dictionary...");
     WordFinder wf = new WordFinder("./scrabble_words.txt");
     WordFinder.reportTime("loaded.");
 
