@@ -266,7 +266,7 @@ public class WordFinder {
     char ch = nextTile.letter;
     String nextsofar = sofar + ch;
     List<Tile> newtemplate = template.subList(1, template.size());
-    int nextScore = usingLetter ? scoreSoFar + (letterScores.get(ch) * template.get(0).letterMult) : scoreSoFar;
+    int nextScore = usingLetter ? scoreSoFar + (letterScores.get(ch) * template.get(0).letterMult) : scoreSoFar + letterScores.get(ch);
     int nextWordMult = usingLetter ? (wordMultSoFar * template.get(0).wordMult) : wordMultSoFar;
     TrieNode nextNode = nodeSoFar.isPrefix(Character.toString(ch));
     if (nextNode != null) {
@@ -296,7 +296,8 @@ public class WordFinder {
       for (char sch : searchChars) {
         String nextsofar = sofar + sch;
         String nextDotsSoFar = dotsSoFar + (isDot ? String.valueOf(sch) : "");
-        int nextScore = scoreSoFar + (letterScores.get(sch) * (template.size() > 0 ? template.get(0).letterMult : 1));
+        int nextScore = scoreSoFar;
+        nextScore = scoreSoFar + (letterScores.get(sch) * (template.size() > 0 ? template.get(0).letterMult : 1));
         int nextWordMult = wordMultSoFar * (template.size() > 0 ? template.get(0).wordMult : 1);
         TrieNode nextNode = nodeSoFar.isPrefix(Character.toString(sch));
         if (nextNode != null) {
@@ -378,6 +379,10 @@ public class WordFinder {
     int maxPrefix = args.length > 2 ? Integer.valueOf(args[2]) : 7;
     int maxPostfix = args.length > 3 ? Integer.valueOf(args[3]) : 7;
 
+    if (!validate(letters, template)) {
+      return;
+    }
+
     WordFinder.reportTime("loading dictionary...");
     WordFinder wf = new WordFinder("./scrabble_words.txt");
     WordFinder.reportTime("loaded.");
@@ -406,6 +411,21 @@ public class WordFinder {
         System.out.println(String.format("%s%s score:%d", winfo.dotVals.isEmpty() ? "" : winfo.dotVals+": ", word, winfo.score));
       }
     }
+  }
+
+  private static boolean validate(String letters, String template) {
+    if (letters.length() < 1 || letters.matches(".*[^a-zA-Z\\.].*")) {
+      System.out.println("invalid letters: "+letters);
+      System.out.println("Letters can be a-z or '.' to represent a blank tile");
+      return false;
+    }
+    if (template.matches(".*[^a-zA-Z0-9\\.\\-\\+#!].*")) {
+      System.out.println("invalid template: "+template);
+      System.out.println("The template can be a-z, or '.' for an empty space,");
+      System.out.println("or [- + # !] to represent [DL TL DW TW]");
+      return false;
+    }
+    return true;
   }
 
   private static boolean DEBUG = false;
