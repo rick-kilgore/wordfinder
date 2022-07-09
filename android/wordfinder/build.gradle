@@ -6,3 +6,11 @@ java {
     sourceCompatibility = JavaVersion.VERSION_12
     targetCompatibility = JavaVersion.VERSION_12
 }
+
+jar {
+  manifest {
+    attributes(
+      'Main-Class': 'org.rkilgore.wordfinder.WordFinder'
+    )
+  }
+}
