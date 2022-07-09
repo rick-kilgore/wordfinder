@@ -41,7 +41,7 @@ public class WordFinder {
     }
 
     Tile(char letter) {
-      this("letter " + letter);
+      this("board letter " + letter);
       this.empty = false;
       this.letter = letter;
     }
@@ -264,12 +264,16 @@ public class WordFinder {
         int curPrefixLen, int curPostfixLen, boolean usingLetter) {
     Tile nextTile = template.get(0);
     char ch = nextTile.letter;
-    String nextsofar = sofar + ch;
-    List<Tile> newtemplate = template.subList(1, template.size());
-    int nextScore = usingLetter ? scoreSoFar + (letterScores.get(ch) * template.get(0).letterMult) : scoreSoFar + letterScores.get(ch);
-    int nextWordMult = usingLetter ? (wordMultSoFar * template.get(0).wordMult) : wordMultSoFar;
     TrieNode nextNode = nodeSoFar.isPrefix(Character.toString(ch));
     if (nextNode != null) {
+      String nextsofar = sofar + ch;
+      List<Tile> newtemplate = template.subList(1, template.size());
+      int scoreAdd = usingLetter ? (letterScores.get(ch) * template.get(0).letterMult) : letterScores.get(ch);
+      int multMult = usingLetter ? template.get(0).wordMult : 1;
+      // debugLog(String.format("%sadding to TEMPLATE: scoreAdd=%d multMult=%d for %s + '%c' on %s space",
+            // "  ".repeat(depth), scoreAdd, multMult, sofar, ch, template.get(0)));
+      int nextScore = scoreSoFar + scoreAdd;
+      int nextWordMult = wordMultSoFar * multMult;
       if (nextNode.isword && newtemplate.isEmpty() && hasRequiredLetters(nextsofar)) {
         addWord(nextsofar, nextScore * nextWordMult, dotsSoFar);
       }
@@ -294,13 +298,23 @@ public class WordFinder {
 
       char[] searchChars = isDot ? "abcdefghijklmnopqrstuvwxyz".toCharArray() : new char[] { ch };
       for (char sch : searchChars) {
-        String nextsofar = sofar + sch;
-        String nextDotsSoFar = dotsSoFar + (isDot ? String.valueOf(sch) : "");
-        int nextScore = scoreSoFar;
-        nextScore = scoreSoFar + (letterScores.get(sch) * (template.size() > 0 ? template.get(0).letterMult : 1));
-        int nextWordMult = wordMultSoFar * (template.size() > 0 ? template.get(0).wordMult : 1);
         TrieNode nextNode = nodeSoFar.isPrefix(Character.toString(sch));
         if (nextNode != null) {
+          String nextsofar = sofar + sch;
+          String nextDotsSoFar = dotsSoFar + (isDot ? String.valueOf(sch) : "");
+          int scoreAdd = letterScores.get(sch) *
+                         (placement == LetterPlacement.TEMPLATE &&
+                                  template.size() > 0 && searchChars.length == 1
+                              ? template.get(0).letterMult
+                              : 1);
+          int multMult =
+              placement == LetterPlacement.TEMPLATE && template.size() > 0
+                  ? template.get(0).wordMult
+                  : 1;
+          // debugLog(String.format("%sadding to %s: scoreAdd=%d multMult=%d for %s + '%c' on %s space",
+                // "  ".repeat(depth), placement, scoreAdd, multMult, sofar, sch, placement == LetterPlacement.TEMPLATE ? template.get(0) : "PREFIX"));
+          int nextScore = scoreSoFar + scoreAdd;
+          int nextWordMult = wordMultSoFar * multMult;
           if (nextNode.isword && newtemplate.isEmpty() && hasRequiredLetters(nextsofar)) {
             addWord(nextsofar, nextScore * nextWordMult, nextDotsSoFar);
           }
