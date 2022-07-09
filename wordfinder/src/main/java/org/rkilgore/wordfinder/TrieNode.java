@@ -9,9 +9,9 @@ import java.util.Scanner;
 
 public class TrieNode {
   public TrieNode(char ch) {
-    this._ch = ch;
+    this.ch = ch;
+    this.isword = false;
     this._children = new ArrayList<TrieNode>();
-    this._isword = false;
   }
 
   public TrieNode(Scanner dictFileScanner) {
@@ -29,17 +29,17 @@ public class TrieNode {
     }
   }
 
-  public TrieResult isPrefix(String prefix) {
+  public TrieNode isPrefix(String prefix) {
     TrieNode node = this;
     char[] chars = prefix.toLowerCase().toCharArray();
     for (char ch : chars) {
-      Optional<TrieNode> child = node._children.stream().filter(tn -> tn._ch == ch).findFirst();
+      Optional<TrieNode> child = node._children.stream().filter(tn -> tn.ch == ch).findFirst();
       if (!child.isPresent()) {
-        return new TrieResult(false, false);
+        return null;
       }
       node = child.get();
     }
-    return new TrieResult(true, node._isword);
+    return node;
   }
 
   private void readFromFile(Scanner scanner) {
@@ -59,11 +59,11 @@ public class TrieNode {
     for (char ch : chars) {
       node = node.getOrCreateChild(ch);
     }
-    node._isword = true;
+    node.isword = true;
   }
 
   private TrieNode getOrCreateChild(char ch) {
-    Optional<TrieNode> opt = this._children.stream().filter(tn -> tn._ch == ch).findFirst();
+    Optional<TrieNode> opt = this._children.stream().filter(tn -> tn.ch == ch).findFirst();
     if (opt.isPresent()) {
       return opt.get();
     }
@@ -72,7 +72,7 @@ public class TrieNode {
     return child;
   }
 
-  private char _ch;
+  private char ch;
+  public boolean isword;
   private List<TrieNode> _children;
-  private boolean _isword;
 }
